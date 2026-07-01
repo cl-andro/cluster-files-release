@@ -3,16 +3,8 @@ name: Build & Release Cluster Files APK
 on:
   workflow_dispatch:
     inputs:
-      version_tag:
-        description: 'Release Version Tag (e.g., v1.0.0)'
-        required: true
-        type: string
-      release_title:
-        description: 'Release Title'
-        required: true
-        type: string
       release_notes:
-        description: 'Release Notes description'
+        description: 'Release Notes (optional)'
         required: false
         type: string
 
@@ -34,9 +26,48 @@ jobs:
           distribution: 'zulu'
           cache: 'gradle'
 
+      - name: Calculate Next Version Tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch the latest release tag using GitHub CLI
+          LATEST_TAG=$(gh release view --json tagName --template '{{.tagName}}' 2>/dev/null || echo "v1.0")
+          echo "Latest tag found: $LATEST_TAG"
+          
+          # Strip the leading 'v'
+          VERSION=${LATEST_TAG#v}
+          
+          # Parse Major and Minor numbers
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          
+          if [ -z "$MINOR" ]; then MINOR=0; fi
+          
+          # Increment minor version
+          MINOR=$((MINOR + 1))
+          
+          # Rollover logic (e.g., v1.9 -> v2.0)
+          if [ "$MINOR" -ge 10 ]; then
+            MINOR=0
+            MAJOR=$((MAJOR + 1))
+          fi
+          
+          NEXT_TAG="v$MAJOR.$MINOR"
+          echo "Calculated next tag: $NEXT_TAG"
+          
+          # Save variables to environment
+          echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
+          echo "APK_NAME=cluster-file-$NEXT_TAG.apk" >> $GITHUB_ENV
+
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release-signing-key.jks
+
+      - name: Inject Version into app/build.gradle
+        run: |
+          VERSION_WITHOUT_V=${NEXT_TAG#v}
+          sed -i "s/versionName '[^']*'/versionName '$VERSION_WITHOUT_V'/g" app/build.gradle
+          echo "Injected versionName: $VERSION_WITHOUT_V"
 
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew
@@ -54,18 +85,19 @@ jobs:
             -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$KEY_PASSWORD
 
-      - name: Locate & Rename APK
+      - name: Rename Output APK
         run: |
           APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          cp "$APK_PATH" cluster-files-release.apk
+          cp "$APK_PATH" "$APK_NAME"
+          echo "Prepared APK: $APK_NAME"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version_tag }}
-          name: ${{ inputs.release_title }}
+          tag_name: ${{ env.NEXT_TAG }}
+          name: "Release ${{ env.NEXT_TAG }}"
           body: ${{ inputs.release_notes }}
-          files: cluster-files-release.apk
+          files: ${{ env.APK_NAME }}
           draft: false
           prerelease: false
         env:
