@@ -23,9 +23,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # Use the Personal Access Token (PAT) to check out the private codebase
           token: ${{ secrets.PAT_TOKEN }}
-          repository: 'ZaidAlamagir/cluster-files' # Replace with your actual private repo name
+          repository: 'cl-andro/cluster-files'
           ref: 'main'
 
       - name: Set up JDK 21
@@ -37,7 +36,6 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          # Recreate the signing keystore file from the base64 GitHub Secret
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release-signing-key.jks
 
       - name: Grant Execute Permission to Gradlew
@@ -50,7 +48,6 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # Run the build compiling with R8 enabled
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$KEYSTORE_FILE \
             -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
@@ -59,10 +56,8 @@ jobs:
 
       - name: Locate & Rename APK
         run: |
-          # Find the output release APK and rename it for clarity
           APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
           cp "$APK_PATH" cluster-files-release.apk
-          echo "APK_PATH=cluster-files-release.apk" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
