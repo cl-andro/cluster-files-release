@@ -74,7 +74,7 @@ jobs:
 
       - name: Build Release APK
         env:
-          KEYSTORE_FILE: 'release-signing-key.jks'
+          KEYSTORE_FILE: '${{ github.workspace }}/app/release-signing-key.jks'
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
