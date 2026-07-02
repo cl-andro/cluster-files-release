@@ -45,7 +45,7 @@ If your phone is not rooted, you can start the service using a computer via ADB:
 2. Open a terminal / command prompt on your computer.
 3. Run the following command to dynamically locate and execute the starter binary:
    ```bash
-   adb shell $(pm path com.zk.clAuto | cut -d: -f2 | sed 's/base.apk/lib\/arm64\/libshizuku.so/')
+   adb shell $(pm path com.zk.clAuto | cut -d: -f2 | sed 's/base.apk/lib\/arm64\/libclauto.so/')
    ```
 4. *Access Level:* The helper will run under the `shell` user (UID 2000). You will be able to browse the system root (`/`), read/write to `/data/local/tmp`, and view system file configurations, but you will not have permission to read restricted root-only system directories.
 
